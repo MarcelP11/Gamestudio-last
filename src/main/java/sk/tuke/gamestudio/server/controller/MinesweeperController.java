@@ -2,10 +2,12 @@ package sk.tuke.gamestudio.server.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.WebApplicationContext;
 import sk.tuke.gamestudio.entity.Score;
 import sk.tuke.gamestudio.minesweeper.core.Clue;
@@ -43,7 +45,7 @@ public class MinesweeperController {
     private boolean isPlaying = true;
 
 
-    @RequestMapping
+    @RequestMapping  //metoda spracujuca nejake poziadavky ma tuto anotaciu
     public String processUserInput(@RequestParam(required = false) Integer row, @RequestParam(required = false) Integer column, Model model){
         //method renamed from minesweeper
 
@@ -65,6 +67,41 @@ public class MinesweeperController {
         prepareModel(model);
         return "minesweeper";
     }
+
+    @RequestMapping("/asynch")
+    public String loadInAsynchMode(Model model){
+        startOrUpdateGame(null,null);  //nechceme vidiet ziadne parametre v URL
+        prepareModel(model);
+        return "minesweeperAsynch";
+    }
+
+
+    @RequestMapping(value = "/json", produces = MediaType.APPLICATION_JSON_VALUE)  //metoda spracujuca nejake poziadavky ma tuto anotaciu
+    @ResponseBody
+    public Field processUserInputJson(@RequestParam(required = false) Integer row, @RequestParam(required = false) Integer column){
+        //method renamed from minesweeper
+
+        startOrUpdateGame(row,column);
+        return this.field;
+    }
+
+    @RequestMapping(value = "/jsonmark", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public  Field changeMarkingJson(){
+        switchMode();
+        return this.field;
+    }
+
+    @RequestMapping(value = "/jsonnew", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public  Field newGameJson(){
+        startNewGame();
+        return this.field;
+    }
+
+
+    //doplnit kod sem a do triedy field
+
 
     public String getCurrTime(){
         return new Date().toString();
