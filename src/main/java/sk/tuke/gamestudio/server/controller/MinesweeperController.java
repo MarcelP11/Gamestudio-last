@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -45,7 +46,7 @@ public class MinesweeperController {
     private boolean isPlaying = true;
 
 
-    @RequestMapping  //metoda spracujuca nejake poziadavky ma tuto anotaciu
+    @RequestMapping
     public String processUserInput(@RequestParam(required = false) Integer row, @RequestParam(required = false) Integer column, Model model){
         //method renamed from minesweeper
 
@@ -69,38 +70,37 @@ public class MinesweeperController {
     }
 
     @RequestMapping("/asynch")
-    public String loadInAsynchMode(Model model){
-        startOrUpdateGame(null,null);  //nechceme vidiet ziadne parametre v URL
-        prepareModel(model);
+    public String loadInAsynchMode(){
+        startOrUpdateGame(null,null);
         return "minesweeperAsynch";
     }
 
-
-    @RequestMapping(value = "/json", produces = MediaType.APPLICATION_JSON_VALUE)  //metoda spracujuca nejake poziadavky ma tuto anotaciu
+    @RequestMapping(value="/json", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Field processUserInputJson(@RequestParam(required = false) Integer row, @RequestParam(required = false) Integer column){
-        //method renamed from minesweeper
-
-        startOrUpdateGame(row,column);
+        boolean justFinished = startOrUpdateGame(row,column);
+        this.field.setJustFinished(justFinished);
+        this.field.setMarking(marking);
         return this.field;
     }
 
-    @RequestMapping(value = "/jsonmark", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value="/jsonmark", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public  Field changeMarkingJson(){
         switchMode();
+        this.field.setJustFinished(false);
+        this.field.setMarking(marking);
         return this.field;
     }
 
-    @RequestMapping(value = "/jsonnew", produces = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(value="/jsonnew", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public  Field newGameJson(){
         startNewGame();
+        this.field.setJustFinished(false);
+        this.field.setMarking(marking);
         return this.field;
     }
-
-
-    //doplnit kod sem a do triedy field
 
 
     public String getCurrTime(){
@@ -209,8 +209,8 @@ public class MinesweeperController {
      * @param row row of the tile on which the user clicked
      * @param column column of the tile on which the user clicked
      */
-    private void startOrUpdateGame(Integer row, Integer column){
-
+    private boolean startOrUpdateGame(Integer row, Integer column){
+        boolean justFinished=false;
         if(field==null){
             startNewGame();
         }
@@ -227,6 +227,8 @@ public class MinesweeperController {
             if(this.field.getState()!= GameState.PLAYING && this.isPlaying==true){ //I just won/lose
                 this.isPlaying=false;
 
+                justFinished=true;
+
 
                 if(userController.isLogged()){
                     Score newScore = new Score("minesweeper", userController.getLoggedUser(), this.field.getScore(), new Date());
@@ -235,6 +237,7 @@ public class MinesweeperController {
                 }
             }
         }
+        return justFinished;
     }
 
     /**
@@ -247,12 +250,7 @@ public class MinesweeperController {
         }
     }
 
-    /**
-     * Fills the Spring MVC model object for the Thymeleaf template
-     * @param model - the Spring MVC model
-     */
-    private void prepareModel(Model model){
-
+    private String getGameStatusMessage(){
         String gameStatus="";
         if(this.field.getState()== GameState.FAILED){
             gameStatus="Prehral si";
@@ -266,10 +264,19 @@ public class MinesweeperController {
                 gameStatus+="otváraš";
             }
         }
+        return gameStatus;
+    }
+
+
+    /**
+     * Fills the Spring MVC model object for the Thymeleaf template
+     * @param model - the Spring MVC model
+     */
+    private void prepareModel(Model model){
 
         model.addAttribute("isPlaying",this.isPlaying);
         model.addAttribute("marking",this.marking);
-        model.addAttribute("gameStatus",gameStatus);
+        model.addAttribute("gameStatus",getGameStatusMessage());
         model.addAttribute("minesweeperField",this.field.getTiles());
         model.addAttribute("bestScores",scoreService.getBestScores("minesweeper"));    }
 }
